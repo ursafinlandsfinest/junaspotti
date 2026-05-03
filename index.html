@@ -4,10 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>🚂 JunaSpotti</title>
-
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 
   <style>
@@ -29,21 +27,23 @@
       height:100dvh;
     }
 
-    #hdr{background:var(--panel);border-bottom:2px solid var(--bdr);padding:0 12px;height:50px;display:flex;align-items:center;}
+    #hdr{background:var(--panel);border-bottom:2px solid var(--bdr);padding:0 12px;height:50px;display:flex;align-items:center;gap:10px;flex-shrink:0;z-index:50;}
 
     #map{flex:1;min-height:0;position:relative;overflow:hidden;}
 
-    #sp-list,#rp-scroll{
+    #sp-list,
+    #rp-scroll {
       overflow-y:auto;
       -webkit-overflow-scrolling:touch;
       overscroll-behavior:contain;
+      touch-action:pan-y;
     }
 
     #lpanel,#rpanel{
       position:absolute;top:0;bottom:0;z-index:490;
       background:var(--panel);
       display:flex;flex-direction:column;
-      transition:transform .28s ease;
+      transition:transform .28s cubic-bezier(.4,0,.2,1);
     }
 
     #lpanel{left:0;width:min(290px,88vw);transform:translateX(-100%);}
@@ -51,6 +51,9 @@
 
     #lpanel.open{transform:translateX(0);}
     #rpanel.open{transform:translateX(0);}
+
+    #pov{position:absolute;inset:0;z-index:480;background:rgba(0,0,0,.45);display:none;}
+    #pov.show{display:block;}
   </style>
 </head>
 
@@ -58,6 +61,7 @@
 
 <div id="hdr">🚂 JunaSpotti</div>
 <div id="map"></div>
+<div id="pov" onclick="closePanels()"></div>
 
 <script>
 const API='https://rata.digitraffic.fi/api/v1';
@@ -67,7 +71,9 @@ const map=L.map('map',{center:[64.2,26.0],zoom:6});
 
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-/* ✔️ KAIKKI LAYERIT */
+/* ─────────────────────────────
+   LAYERIT (EI MUUTOKSIA)
+───────────────────────────── */
 const LG={
   trains:L.layerGroup().addTo(map),
   yards:L.layerGroup().addTo(map),
@@ -75,31 +81,59 @@ const LG={
   spots:L.layerGroup().addTo(map)
 };
 
-/* ✔️ OLETUS: VAIN KATSELUPAIKAT */
+/* ✔️ AINOA MUUTOS: oletusnäkyvyys */
 map.removeLayer(LG.yards);
 map.removeLayer(LG.crossing);
 
-/* DATA */
-let allTrains=[];
+let allTrains=[],prevPos={},stopCycles={},firstStop={},fetchingLocs=false;
+
+function hav(a,b,c,d){
+  const dL=(c-a)*Math.PI/180,dO=(d-b)*Math.PI/180;
+  const x=Math.sin(dL/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dO/2)**2;
+  return 6371*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+}
+
+function nightEst(num,speed,lat,lng){
+  const now=new Date(),h=now.getHours();
+
+  if(speed>2){
+    stopCycles[num]=0;
+    delete firstStop[num];
+    return{status:'moving',prob:0};
+  }
+
+  stopCycles[num]=(stopCycles[num]||0)+1;
+  if(!firstStop[num]) firstStop[num]=now;
+
+  let p=0;
+  if(((now-firstStop[num])/60000)>60)p+=25;
+  if(h>=20||h<6)p+=30;
+
+  return{status:p>=55?'night':'stopped',prob:Math.min(p,99)};
+}
 
 function render(data){
   LG.trains.clearLayers();
-
   data.forEach(t=>{
     L.marker([t.location.coordinates[1],t.location.coordinates[0]])
       .addTo(LG.trains);
   });
 }
 
-/* FETCH */
 async function fetchLocs(){
-  const res=await fetch(`${API}/train-locations/latest/`);
-  const data=await res.json();
-  allTrains=data;
-  render(allTrains);
+  if(fetchingLocs) return;
+  fetchingLocs=true;
+
+  try{
+    const res=await fetch(`${API}/train-locations/latest/`);
+    const data=await res.json();
+    allTrains=data;
+    render(allTrains);
+  }finally{
+    fetchingLocs=false;
+  }
 }
 
-/* INIT */
 fetchLocs();
 setInterval(fetchLocs,REFRESH);
 </script>
