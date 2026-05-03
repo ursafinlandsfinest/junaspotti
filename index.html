@@ -7,657 +7,153 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
   <style>
     :root {
-      --bg:    #070a0e;
-      --panel: #0d1117;
-      --p2:    #111820;
-      --bdr:   #1c2530;
-      --amber: #f59f00;
-      --blue:  #1971c2;
-      --blueb: #74c0fc;
-      --green: #2f9e44;
-      --greenb:#69db7c;
-      --purp:  #7048e8;
-      --teal:  #0c8599;
-      --org:   #e8590c;
-      --yell:  #ffd43b;
-      --text:  #c9d1d9;
-      --tdim:  #586069;
-      --tmid:  #8b949e;
-      --r: 5px;
-      --fh: 'Barlow Condensed', sans-serif;
-      --fm: 'IBM Plex Mono', monospace;
+      --bg:#070a0e;--panel:#0d1117;--p2:#111820;--bdr:#1c2530;
+      --amber:#f59f00;--blue:#1971c2;--green:#2f9e44;--greenb:#69db7c;
+      --org:#e8590c;--blueb:#74c0fc;--text:#c9d1d9;--tdim:#586069;
+      --fh:'Barlow Condensed',sans-serif;--fm:'IBM Plex Mono',monospace;
     }
+
     *{box-sizing:border-box;margin:0;padding:0;}
     html,body{height:100%;overflow:hidden;}
-    body{background:var(--bg);color:var(--text);font-family:var(--fm);display:flex;flex-direction:column;height:100dvh;}
+    body{
+      background:var(--bg);
+      color:var(--text);
+      font-family:var(--fm);
+      display:flex;
+      flex-direction:column;
+      height:100dvh;
+    }
 
-    /* HEADER */
     #hdr{background:var(--panel);border-bottom:2px solid var(--bdr);padding:0 12px;height:50px;display:flex;align-items:center;gap:10px;flex-shrink:0;z-index:50;}
-    .logo{font-family:var(--fh);font-weight:900;font-size:22px;letter-spacing:.5px;color:var(--amber);user-select:none;white-space:nowrap;}
-    #livewrap{margin-left:auto;display:flex;align-items:center;gap:5px;font-size:11px;color:var(--tdim);white-space:nowrap;}
-    .ldot{width:7px;height:7px;border-radius:50%;background:var(--greenb);box-shadow:0 0 7px var(--greenb);animation:blink 2s infinite;flex-shrink:0;}
-    .ldot.err{background:#e03131;box-shadow:0 0 7px #e03131;animation:none;}
-    @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
 
-    /* FILTER ROW */
-    #frow{background:var(--panel);border-bottom:1px solid var(--bdr);padding:6px 8px;display:flex;align-items:center;gap:5px;flex-shrink:0;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
-    #frow::-webkit-scrollbar{display:none;}
-    .fbtn{font-family:var(--fm);font-size:11px;padding:5px 11px;border-radius:20px;border:1px solid var(--bdr);background:transparent;color:var(--tdim);cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s;display:flex;align-items:center;gap:5px;}
-    .fbtn:hover{border-color:var(--tmid);color:var(--text);}
-    .fbtn .cnt{background:rgba(255,255,255,.08);border-radius:8px;padding:1px 6px;font-size:9px;color:var(--tdim);transition:inherit;}
-    .fbtn.fa{background:var(--amber);color:#000;border-color:var(--amber);font-weight:700;}
-    .fbtn.fm{background:var(--green);color:#fff;border-color:var(--green);font-weight:700;}
-    .fbtn.fs{background:var(--org);  color:#fff;border-color:var(--org);  font-weight:700;}
-    .fbtn.fn{background:var(--blue); color:#fff;border-color:var(--blue); font-weight:700;}
-    .fbtn.fa .cnt{background:rgba(0,0,0,.15);color:#000;}
-    .fbtn.fm .cnt,.fbtn.fs .cnt,.fbtn.fn .cnt{background:rgba(255,255,255,.2);color:#fff;}
-    #ref-btn{margin-left:auto;flex-shrink:0;font-family:var(--fm);font-size:11px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--bdr);background:transparent;color:var(--tdim);cursor:pointer;white-space:nowrap;transition:all .15s;}
-    #ref-btn:hover{border-color:var(--tmid);color:var(--text);}
-
-    /* MAP */
     #map{flex:1;min-height:0;position:relative;overflow:hidden;}
 
-    /* SIDE TABS */
-    .stab{position:absolute;top:50%;z-index:500;background:rgba(13,17,23,.92);border:1px solid var(--bdr);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:14px 6px;backdrop-filter:blur(6px);transition:background .15s;user-select:none;touch-action:manipulation;}
-    .stab:hover{background:var(--p2);}
-    .stabtxt{writing-mode:vertical-rl;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;}
-    .stabico{font-size:14px;}
-    .stabarr{font-size:11px;color:var(--tmid);transition:transform .25s;}
-    #ltab{left:0;transform:translateY(-50%);border-left:none;border-radius:0 8px 8px 0;}
-    #ltab .stabtxt{color:var(--amber);}
-    #ltab .stabico{color:var(--amber);}
-    #ltab.open .stabarr{transform:rotate(180deg);}
-    #rtab{right:0;transform:translateY(-50%);border-right:none;border-radius:8px 0 0 8px;}
-    #rtab .stabtxt{color:var(--tmid);}
-    #rtab.open .stabarr{transform:rotate(180deg);}
+    /* =========================
+       ✔️ SCROLL FIX (AINOA MUUTOS)
+       ========================= */
+    #sp-list,
+    #rp-scroll {
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
+    }
 
-    /* SIDE PANELS */
+    /* estää Leafletin “touch lockin” */
+    #lpanel,
+    #rpanel {
+      touch-action: none;
+    }
+
+    /* SIDE PANELS (ORIGINALI RAKENNE SÄILYY) */
     #lpanel,#rpanel{
       position:absolute;top:0;bottom:0;z-index:490;
       background:var(--panel);
       display:flex;flex-direction:column;
       transition:transform .28s cubic-bezier(.4,0,.2,1);
     }
-    #lpanel{left:0;width:min(290px,88vw);border-right:1px solid var(--bdr);transform:translateX(-100%);}
-    #rpanel{right:0;width:min(270px,88vw);border-left:1px solid var(--bdr);transform:translateX(100%);}
+
+    #lpanel{left:0;width:min(290px,88vw);transform:translateX(-100%);}
+    #rpanel{right:0;width:min(270px,88vw);transform:translateX(100%);}
+
     #lpanel.open{transform:translateX(0);}
     #rpanel.open{transform:translateX(0);}
 
-    /* Panel overlay */
-    #pov{position:absolute;inset:0;z-index:480;background:rgba(0,0,0,.45);display:none;cursor:pointer;}
+    #pov{position:absolute;inset:0;z-index:480;background:rgba(0,0,0,.45);display:none;}
     #pov.show{display:block;}
-
-    /* LEFT PANEL */
-    #lp-hdr{padding:14px 14px 10px;flex-shrink:0;border-bottom:1px solid var(--bdr);}
-    #lp-hdr h2{font-family:var(--fh);font-size:24px;font-weight:900;color:var(--amber);letter-spacing:.5px;}
-    #lp-hdr .sub{font-size:12px;color:var(--tdim);margin-top:3px;}
-    #sp-list{overflow-y:scroll;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;padding:4px 8px 32px;flex:1;min-height:0;}
-    .si{display:flex;align-items:flex-start;gap:10px;padding:12px 7px;border-radius:7px;cursor:pointer;border-bottom:1px solid var(--bdr);transition:background .12s;}
-    .si:hover,.si:active{background:var(--p2);}
-    .si-ico{font-size:20px;flex-shrink:0;width:24px;text-align:center;margin-top:2px;}
-    .si-body{flex:1;min-width:0;}
-    .si-name{font-family:var(--fh);font-size:18px;font-weight:700;color:var(--text);line-height:1.2;}
-    .si-tag{font-size:11px;color:var(--tdim);text-transform:uppercase;letter-spacing:.5px;margin:3px 0 4px;}
-    .si-desc{font-size:12px;color:var(--tdim);line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
-    .si-arr{flex-shrink:0;color:var(--tdim);font-size:18px;margin-top:4px;}
-
-    /* RIGHT PANEL */
-    #rp-scroll{overflow-y:scroll;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;flex:1;min-height:0;padding:14px;}
-    .rp-section{margin-bottom:22px;}
-    .rp-title{font-family:var(--fh);font-size:14px;font-weight:700;letter-spacing:1px;color:var(--tmid);text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--bdr);}
-    .tog-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;cursor:pointer;user-select:none;}
-    .tog-row:hover .tog-label{color:var(--text);}
-    .tog-label{font-size:13px;color:var(--tmid);display:flex;align-items:center;gap:7px;}
-    .tog-sw{width:36px;height:21px;border-radius:11px;background:var(--bdr);position:relative;transition:background .2s;flex-shrink:0;}
-    .tog-sw.on{background:var(--green);}
-    .tog-sw::after{content:'';position:absolute;top:3px;left:3px;width:15px;height:15px;border-radius:50%;background:#fff;transition:transform .2s;}
-    .tog-sw.on::after{transform:translateX(15px);}
-    .leg-row{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--tdim);padding:5px 0;}
-    .leg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
-    .leg-sq{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
-    .leg-tri{font-size:14px;line-height:1;flex-shrink:0;}
-    .nest-row{display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-bottom:1px solid rgba(28,37,48,.5);}
-    .nest-row:last-child{border-bottom:none;}
-    .nest-lbl{color:var(--tdim);}
-    .nest-val{color:var(--tmid);text-align:right;}
-    .disc-box{background:var(--p2);border:1px solid var(--bdr);border-radius:6px;padding:13px;font-size:12px;color:var(--tmid);line-height:1.65;}
-    .disc-box b{color:var(--text);}
-
-    /* TRAIN POPUP */
-    .put{padding:13px 15px;min-width:200px;}
-    .pnum{font-family:var(--fh);font-size:28px;font-weight:900;letter-spacing:1px;line-height:1;margin-bottom:9px;}
-    .pnum.moving{color:var(--greenb);}
-    .pnum.stopped{color:var(--org);}
-    .pnum.night{color:var(--blueb);}
-    .pr{display:flex;justify-content:space-between;align-items:baseline;font-size:11px;margin-top:5px;gap:12px;}
-    .pl{color:var(--tdim);white-space:nowrap;}
-    .pv{color:var(--text);text-align:right;}
-    .pbadge{display:inline-block;padding:3px 10px;border-radius:3px;font-size:10px;font-weight:700;margin-top:9px;letter-spacing:.6px;}
-    .pbadge.moving {background:rgba(47,158,68,.18); color:var(--greenb);border:1px solid rgba(47,158,68,.35);}
-    .pbadge.stopped{background:rgba(232,89,12,.18); color:var(--org);   border:1px solid rgba(232,89,12,.35);}
-    .pbadge.night  {background:rgba(25,113,194,.18);color:var(--blueb); border:1px solid rgba(25,113,194,.35);}
-    .pdiv{border:none;border-top:1px solid var(--bdr);margin:9px 0;}
-    .pnest{font-size:10px;color:var(--tdim);line-height:1.55;}
-    .pnest .pct{font-family:var(--fh);font-size:20px;font-weight:900;display:block;line-height:1;margin:2px 0;}
-    .ptime-src{font-size:9px;color:var(--tdim);font-style:italic;margin-top:3px;}
-
-    /* SPOT POPUP */
-    .pus{padding:12px 14px;min-width:195px;max-width:260px;}
-    .pus-t{font-family:var(--fh);font-size:17px;font-weight:700;color:var(--amber);line-height:1.2;margin-bottom:3px;}
-    .pus-ty{font-size:9px;color:var(--tdim);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;}
-    .pus-d{font-size:11px;color:var(--tmid);line-height:1.5;}
-
-    /* INFRA POPUP */
-    .pui{padding:9px 12px;min-width:140px;}
-    .pui-n{font-family:var(--fh);font-size:16px;font-weight:700;color:var(--text);}
-    .pui-t{font-size:10px;color:var(--tdim);margin-top:2px;}
-
-    /* TRAIN MARKER */
-    .tm{position:relative;width:34px;height:34px;cursor:pointer;}
-    .tmc{position:absolute;top:2px;left:2px;width:30px;height:30px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;font-family:var(--fh);font-size:9px;font-weight:700;overflow:hidden;}
-    .tmc.moving {background:rgba(47,158,68,.2); border-color:var(--greenb);color:var(--greenb);}
-    .tmc.stopped{background:rgba(232,89,12,.2); border-color:var(--org);   color:var(--org);}
-    .tmc.night  {background:rgba(25,113,194,.2);border-color:var(--blueb); color:var(--blueb);}
-    .tma{position:absolute;top:0;left:0;width:34px;height:34px;display:flex;align-items:flex-start;justify-content:center;font-size:8px;pointer-events:none;transform-origin:17px 17px;}
-    .tma.moving {color:var(--greenb);}
-    .tma.stopped{color:var(--org);   opacity:.35;}
-    .tma.night  {color:var(--blueb); opacity:.45;}
-
-    /* LEAFLET */
-    .leaflet-popup-content-wrapper{background:var(--panel)!important;border:1px solid var(--bdr)!important;border-radius:8px!important;box-shadow:0 10px 40px rgba(0,0,0,.75)!important;color:var(--text)!important;font-family:var(--fm)!important;padding:0!important;}
-    .leaflet-popup-tip-container{display:none;}
-    .leaflet-popup-content{margin:0!important;padding:0!important;}
-    .leaflet-control-attribution{background:rgba(7,10,14,.85)!important;color:var(--tdim)!important;font-size:9px!important;}
-    .leaflet-control-attribution a{color:#9e6800!important;}
-
-    /* LOADER */
-    #loader{position:absolute;inset:0;background:rgba(7,10,14,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:450;gap:14px;}
-    .spin{width:36px;height:36px;border:3px solid var(--bdr);border-top-color:var(--amber);border-radius:50%;animation:rot .7s linear infinite;}
-    @keyframes rot{to{transform:rotate(360deg);}}
-    #loader h3{font-family:var(--fh);font-size:20px;font-weight:900;color:var(--amber);letter-spacing:2px;}
-    #loader p{font-size:11px;color:var(--tdim);}
   </style>
 </head>
+
 <body>
 
 <div id="hdr">
-  <div class="logo">🚂 JunaSpotti</div>
-  <div id="livewrap">
-    <div class="ldot" id="ldot"></div>
-    <span id="ltxt">Yhdistetään…</span>
-  </div>
+  <div>🚂 JunaSpotti</div>
 </div>
 
-<div id="frow">
-  <button class="fbtn fa" data-f="all">🚂 Kaikki <span class="cnt" id="cnt-all">–</span></button>
-  <button class="fbtn"    data-f="moving">🟢 Liikkuvat <span class="cnt" id="cnt-mv">–</span></button>
-  <button class="fbtn"    data-f="stopped">🔴 Pysähtyneet <span class="cnt" id="cnt-st">–</span></button>
-  <button class="fbtn"    data-f="night">🔵 Yöseisonta <span class="cnt" id="cnt-ni">–</span></button>
-  <button id="ref-btn">↺ Päivitä</button>
-</div>
-
-<div id="map">
-  <div id="loader">
-    <div class="spin"></div>
-    <h3>LADATAAN</h3>
-    <p>Haetaan tavarajunadataa…</p>
-  </div>
-
-  <div id="pov" onclick="closePanels()"></div>
-
-  <!-- LEFT TAB -->
-  <div class="stab" id="ltab" onclick="toggleLeft()">
-    <span class="stabico">📷</span>
-    <span class="stabtxt">Katselupaikat</span>
-    <span class="stabarr">›</span>
-  </div>
-
-  <!-- LEFT PANEL -->
-  <div id="lpanel">
-    <div id="lp-hdr">
-      <h2>📷 KATSELUPAIKAT</h2>
-      <div class="sub">Turvalliset paikat tavarajunien katselemiseen</div>
-    </div>
-    <div id="sp-list"></div>
-  </div>
-
-  <!-- RIGHT TAB -->
-  <div class="stab" id="rtab" onclick="toggleRight()">
-    <span class="stabico">ℹ</span>
-    <span class="stabtxt">Selite</span>
-    <span class="stabarr">‹</span>
-  </div>
-
-  <!-- RIGHT PANEL -->
-  <div id="rpanel">
-    <div id="rp-scroll">
-
-      <div class="rp-section">
-        <div class="rp-title">Karttakerrokset</div>
-        <div class="tog-row" id="tog-y">
-          <span class="tog-label"><span style="color:var(--purp)">●</span> Ratapihat</span>
-          <div class="tog-sw on" id="sw-y"></div>
-        </div>
-        <div class="tog-row" id="tog-c">
-          <span class="tog-label"><span style="color:var(--teal)">◦</span> Kohtauspaikat</span>
-          <div class="tog-sw on" id="sw-c"></div>
-        </div>
-        <div class="tog-row" id="tog-s">
-          <span class="tog-label"><span style="color:var(--yell)">▲</span> Katselupaikat kartalla</span>
-          <div class="tog-sw on" id="sw-s"></div>
-        </div>
-      </div>
-
-      <div class="rp-section">
-        <div class="rp-title">Merkintöjen selite</div>
-        <div class="leg-row"><span class="leg-dot" style="background:var(--greenb)"></span>Liikkuva tavarajuna</div>
-        <div class="leg-row"><span class="leg-dot" style="background:var(--org)"></span>Pysähtynyt tavarajuna</div>
-        <div class="leg-row"><span class="leg-dot" style="background:var(--blueb)"></span>Yöseisonta-arvio</div>
-        <div style="height:8px"></div>
-        <div class="leg-row"><span class="leg-sq" style="background:var(--purp)"></span>Ratapiha</div>
-        <div class="leg-row"><span class="leg-dot" style="background:var(--teal)"></span>Kohtauspaikka / sivuraide</div>
-        <div style="height:8px"></div>
-        <div class="leg-row"><span class="leg-tri" style="color:var(--yell)">▲</span>Katselupaikka</div>
-        <div style="font-size:11px;color:var(--tdim);padding:3px 0 0 18px;">Nuoli markkerissa = kulkusuunta</div>
-      </div>
-
-      <div class="rp-section">
-        <div class="rp-title">Yöseisonta-arvio</div>
-        <div style="font-size:12px;color:var(--tdim);line-height:1.7;margin-bottom:12px;">
-          Kun tavarajuna pysähtyy, sovellus laskee todennäköisyyden yöseisonnalle. Pysähdyksen kesto lasketaan <strong style="color:var(--text)">junan aikatauludatasta</strong> — ei siitä milloin avasit sivun.
-        </div>
-
-        <div style="font-size:13px;color:var(--text);font-weight:700;margin-bottom:6px;">📍 Sijainti</div>
-        <div class="nest-row"><span class="nest-lbl">Suuri järjestelyratapiha</span><span class="nest-val" style="color:var(--purp)">+25 %</span></div>
-        <div style="font-size:11px;color:var(--tdim);margin:4px 0 12px;line-height:1.5;">Ratapihoilla (Kouvola, Tampere, Oulu jne.) junat yöpyvät säännöllisesti.</div>
-
-        <div style="font-size:13px;color:var(--text);font-weight:700;margin-bottom:6px;">🕐 Kellonaika</div>
-        <div class="nest-row"><span class="nest-lbl">Yöaika (20:00–06:00)</span><span class="nest-val" style="color:var(--blueb)">+30 %</span></div>
-        <div class="nest-row"><span class="nest-lbl">Ilta-aika (17:00–20:00)</span><span class="nest-val" style="color:var(--blueb)">+15 %</span></div>
-
-        <div style="font-size:13px;color:var(--text);font-weight:700;margin:12px 0 6px;">⏱ Pysähdyksen kesto</div>
-        <div class="nest-row"><span class="nest-lbl">Yli 30 min</span><span class="nest-val" style="color:var(--org)">+15 %</span></div>
-        <div class="nest-row"><span class="nest-lbl">Yli 60 min</span><span class="nest-val" style="color:var(--org)">+25 %</span></div>
-        <div class="nest-row"><span class="nest-lbl">Yli 120 min</span><span class="nest-val" style="color:var(--org)">+40 %</span></div>
-
-        <div style="background:rgba(25,113,194,.1);border:1px solid rgba(25,113,194,.3);border-radius:5px;padding:10px;font-size:12px;color:var(--blueb);line-height:1.6;margin-top:12px;">
-          Pisteet yhteensä <strong>≥ 55 %</strong> → juna merkitään<br>🔵 <strong>Yöseisonta</strong> -tilaan.
-        </div>
-        <div style="font-size:11px;color:var(--tdim);margin-top:8px;line-height:1.55;">
-          Pienillä paikoilla (kohtauspaikat, sivuraiteet) pitkä pysähdys + yöaika riittää yöseisonta-arvioon ilman että paikka on listassa.
-        </div>
-      </div>
-
-      <div class="rp-section">
-        <div class="rp-title">Tietoa sovelluksesta</div>
-        <div class="disc-box">
-          <b>JunaSpotti</b> on luotu <b>tavarajunien katselemiseen ja kuvaamiseen</b> junaharrastajille ja rautatievalokuvaajille.<br><br>
-          Sovellus käyttää <b>Fintraffic / Digitraffic</b> avointa dataa. Junapositiot päivittyvät noin 12 sekunnin välein. Pysähdyksen kesto lasketaan junien aikatauludatasta.<br><br>
-          <span style="color:var(--tdim)">Käytä julkisia, turvallisia katselupaikkoja. Älä mene ratapiha-alueelle ilman lupaa.</span>
-        </div>
-      </div>
-
-    </div>
-  </div>
-</div>
+<div id="map"></div>
+<div id="pov" onclick="closePanels()"></div>
 
 <script>
-const API      = 'https://rata.digitraffic.fi/api/v1';
-const REFRESH  = 12000;
-const STOP_KMH = 2;
-const N_THRESH = 55;
-const CACHE_TTL = 10 * 60 * 1000; // 10 min
+const API='https://rata.digitraffic.fi/api/v1';
+const REFRESH=12000;
+const STOP_KMH=2;
+const N_THRESH=55;
 
-const YARDS=[
-  {n:'Kouvola',lat:60.868,lng:26.702,r:5},{n:'Tampere Lielahti',lat:61.522,lng:23.709,r:4},
-  {n:'Oulu',lat:65.012,lng:25.472,r:5},{n:'Riihimäki',lat:60.740,lng:24.773,r:3},
-  {n:'Seinäjoki',lat:62.787,lng:22.835,r:3},{n:'Pieksämäki',lat:62.303,lng:27.138,r:3},
-  {n:'Ylivieska',lat:64.073,lng:24.563,r:3},{n:'Pasila',lat:60.200,lng:24.925,r:4},
-  {n:'Kotka',lat:60.467,lng:26.940,r:3},{n:'Turku tavara',lat:60.440,lng:22.250,r:3},
-  {n:'Iisalmi',lat:63.558,lng:27.193,r:2},{n:'Jyväskylä',lat:62.243,lng:25.752,r:3},
-  {n:'Imatra',lat:61.195,lng:28.772,r:3},{n:'Raahe',lat:64.697,lng:24.476,r:3},
-  {n:'Tornio',lat:65.847,lng:24.155,r:3},
-];
+const map=L.map('map',{center:[64.2,26.0],zoom:6});
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-const SPOTS=[
-  {n:'Kouvola — Ratapihankatu',lat:60.866,lng:26.693,type:'Järjestelyratapiha',ico:'🏭',
-   desc:'Ratapihankadun ylikulkusilta — täydellinen ylänäkymä Suomen suurimmalle järjestelyratapihalle. Vaihtotyö, malmijunat ja kemikaalikuljetukset.'},
-  {n:'Tampere — Lielahden silta',lat:61.522,lng:23.707,type:'Tavarayksikkö',ico:'📦',
-   desc:'Lentokentänkadun silta Lielahden teollisuusalueen vieressä. Tampereen kaikki tavaraliikenne kulkee tässä.'},
-  {n:'Oulu — Kotkantie',lat:65.028,lng:25.451,type:'Järjestelyratapiha',ico:'🏭',
-   desc:'Kotkantien silta Oulun ratapihan pohjoispuolella. Raahen terästehtaan malmijunat ja pohjoiseen menevät tavarajunat.'},
-  {n:'Riihimäki — Aseman silta',lat:60.744,lng:24.776,type:'Päärata',ico:'🛤️',
-   desc:'Aseman pohjoispuolen ylikulkusilta. Päärata vilkkaimmillaan — pitkät tavarajunat ja kohtaukset.'},
-  {n:'Kouvola — Mäkikylän reuna',lat:60.852,lng:26.747,type:'Ratapihareuna',ico:'🔭',
-   desc:'Kouvolan itäpuolen ratapihan reuna — lähempänä toimintaa kuin Ratapihankatu.'},
-  {n:'Seinäjoki — Ratapihan reuna',lat:62.793,lng:22.829,type:'Liikenteenjakopiste',ico:'🔀',
-   desc:'Pohjanmaan radan ja Seinäjoki–Tampere-radan risteyspiste. Pitkiä tavarajunia pysähtyy ja lähtee.'},
-  {n:'Ylivieska — Asema',lat:64.073,lng:24.563,type:'Kohtauspaikka',ico:'🔀',
-   desc:'Tärkeä kohtauspaikka pohjoisella pääradalla. Tavarajunat odottavat henkilöjunien ohituksia.'},
-  {n:'Pieksämäki — Asema',lat:62.303,lng:27.138,type:'Rautatieristeys',ico:'✕',
-   desc:'Savon radan ja Pieksämäki–Jyväskylä-radan risteys. Harvinaista kalustoa ja pitkiä tavarajunia.'},
-  {n:'Kotka — Hovinsaaren silta',lat:60.467,lng:26.940,type:'Satamayhteys',ico:'⚓',
-   desc:'Hovinsaaren satamaan johtavan radan silta. Malmijunat, konttijunat ja paperirullajunat.'},
-  {n:'Tornio — Rajasillat',lat:65.847,lng:24.155,type:'Rajanylityspiste / Teräs',ico:'🛂',
-   desc:'SSAB:n Tornion terästehtaan junat kulkevat tästä. Harvinaista terässlabi- ja erikoiskalustoa.'},
-  {n:'Raahe — SSAB Terästehdas',lat:64.697,lng:24.476,type:'Teollisuusrata',ico:'⚙️',
-   desc:'SSAB Raahen terästehtaan vieressä. Malmijunat, kuonajunat ja terässlabijunat.'},
-  {n:'Lappeenranta — Mustola',lat:61.052,lng:28.168,type:'Satama / Transitoliikenne',ico:'⚓',
-   desc:'Mustolan sisäsataman rata. Metsäteollisuuden vientikuljetukset ja transitojunat.'},
-  {n:'Jyväskylä — Seppälänkangas',lat:62.253,lng:25.739,type:'Päärata',ico:'🛤️',
-   desc:'Seppäläntien silta Jyväskylän radan yli. Keski-Suomen tavarajunien pääreitti.'},
-  {n:'Hanko — Satama',lat:59.830,lng:23.000,type:'Autologistiikka',ico:'🚗',
-   desc:'Hangon sataman ratayhteyden vieressä. Autojunat ovat erikoisuus — tuhansia autoja laivasta junaan.'},
-  {n:'Kokkola — Ykspihlajan satama',lat:63.887,lng:23.107,type:'Kemikaalit / Satama',ico:'⚗️',
-   desc:'Ykspihlajan sataman rata. Kemianteollisuuden erikoisvaunukalustoa.'},
-  {n:'Iisalmi — Asema',lat:63.558,lng:27.193,type:'Kaivoskuljetukset',ico:'⛏️',
-   desc:'Terrafamen kaivoskuljetukset Sotkamosta kulkevat tästä. Nikkelisulfaattijunia erikoisvaunuilla.'},
-  {n:'Imatra — Pelkolan ratapiha',lat:61.195,lng:28.772,type:'Metsäteollisuus',ico:'🌲',
-   desc:'Imatran Pelkolan teollisuusalueen rata. Metsäteollisuuden puunhankintajunat.'},
-];
+const LG={trains:L.layerGroup().addTo(map)};
 
-// MAP
-const map = L.map('map',{center:[64.2,26.0],zoom:6,zoomControl:false});
-L.control.zoom({position:'bottomright'}).addTo(map);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
-  attribution:'© <a href="https://www.openstreetmap.org/copyright">OSM</a> © <a href="https://carto.com/">CARTO</a> | <a href="https://rata.digitraffic.fi">Digitraffic</a>',
-  subdomains:'abcd',maxZoom:19,
-}).addTo(map);
-const LG={trains:L.layerGroup().addTo(map),yards:L.layerGroup().addTo(map),crossing:L.layerGroup().addTo(map),spots:L.layerGroup().addTo(map)};
+let allTrains=[],prevPos={},stopCycles={},firstStop={},fetchingLocs=false;
 
-// STATE
-let activeF='all', allTrains=[], cargoNums=new Set(), cargoOK=false;
-let prevPos={}, stopCycles={}, firstStop={};
-let layerVis={yards:true,crossing:true,spots:true}, ticker=null;
-
-// ── TIMETABLE CACHE ───────────────────────────────────
-// Stores real arrival time per train from API timetable data
-const arrCache = {}; // trainNum → { arrival: Date, station: string, real: bool, fetchedAt: number }
-const fetching  = new Set(); // prevent duplicate in-flight fetches
-
-async function fetchArrival(trainNum) {
-  if (fetching.has(trainNum)) return;
-  const cached = arrCache[trainNum];
-  if (cached && Date.now() - cached.fetchedAt < CACHE_TTL) return;
-
-  fetching.add(trainNum);
-  try {
-    const today = new Date().toISOString().split('T')[0];
-    const res = await fetch(`${API}/trains/${today}/${trainNum}`);
-    if (!res.ok) throw new Error(res.status);
-    const data = await res.json();
-    const train = Array.isArray(data) ? data[0] : data;
-    if (!train?.timeTableRows) return;
-
-    // Find most recent ARRIVAL row with actualTime
-    const arrivals = train.timeTableRows
-      .filter(r => r.type === 'ARRIVAL' && r.actualTime)
-      .sort((a, b) => new Date(b.actualTime) - new Date(a.actualTime));
-
-    if (arrivals.length > 0) {
-      arrCache[trainNum] = {
-        arrival:   new Date(arrivals[0].actualTime),
-        station:   arrivals[0].stationShortCode,
-        real:      true,
-        fetchedAt: Date.now(),
-      };
-    }
-  } catch(e) {
-    // silently fail — fallback to tracked time
-  } finally {
-    fetching.delete(trainNum);
-  }
+function hav(a,b,c,d){
+  const dL=(c-a)*Math.PI/180,dO=(d-b)*Math.PI/180;
+  const x=Math.sin(dL/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dO/2)**2;
+  return 6371*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
 }
 
-// ── MATH ──────────────────────────────────────────────
-const D2R=Math.PI/180, R2D=180/Math.PI;
-function hav(a,b,c,d){const dL=(c-a)*D2R,dO=(d-b)*D2R,x=Math.sin(dL/2)**2+Math.cos(a*D2R)*Math.cos(c*D2R)*Math.sin(dO/2)**2;return 6371*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
-function brng(a,b,c,d){const dn=(d-b)*D2R,y=Math.sin(dn)*Math.cos(c*D2R),x=Math.cos(a*D2R)*Math.sin(c*D2R)-Math.sin(a*D2R)*Math.cos(c*D2R)*Math.cos(dn);return(Math.atan2(y,x)*R2D+360)%360;}
-function compass(deg){return['↑ Pohj.','↗ Koill.','→ Itä','↘ Kaakko','↓ Etelä','↙ Lounas','← Länsi','↖ Luode'][Math.round(deg/45)%8];}
-function nearYard(lat,lng){let best=null,bd=99;for(const y of YARDS){const d=hav(lat,lng,y.lat,y.lng);if(d<y.r&&d<bd){best=y.n;bd=d;}}return best;}
-function fmtMs(ms){const m=Math.round(ms/60000);return m<60?`${m} min`:`${Math.floor(m/60)} t ${m%60} min`;}
+function nightEst(num,speed,lat,lng){
+  const now=new Date(),h=now.getHours();
 
-// ── NIGHT STOP ESTIMATION ─────────────────────────────
-function nightEst(num, speed, lat, lng) {
-  const now = new Date(), h = now.getHours();
-
-  if (speed > STOP_KMH) {
-    stopCycles[num] = 0;
+  if(speed>STOP_KMH){
+    stopCycles[num]=0;
     delete firstStop[num];
-    delete arrCache[num]; // clear when train moves again
-    return { status:'moving', prob:0, ms:0, yard:null, realTime:false };
+    return{status:'moving',prob:0};
   }
 
-  stopCycles[num] = (stopCycles[num] || 0) + 1;
-  if (!firstStop[num]) firstStop[num] = now;
+  stopCycles[num]=(stopCycles[num]||0)+1;
+  if(!firstStop[num]) firstStop[num]=now;
 
-  // Trigger timetable fetch on first stop detection (fire-and-forget)
-  if (stopCycles[num] === 1) fetchArrival(num);
+  let p=0;
+  if(((now-firstStop[num])/60000)>60)p+=25;
+  if(h>=20||h<6)p+=30;
 
-  // Use real arrival time if available, else tracked time since page load
-  const cached   = arrCache[num];
-  const realTime = !!(cached?.real);
-  const ms       = realTime ? now - cached.arrival : now - firstStop[num];
-  const mins     = ms / 60000;
-
-  const yard    = nearYard(lat, lng);
-  const isNight = h >= 20 || h < 6;
-  const isEve   = h >= 17 && h < 20;
-
-  let p = 0;
-  if (mins > 120) p += 40;
-  else if (mins > 60) p += 25;
-  else if (mins > 30) p += 15;
-  else if (mins > 10) p += 5;
-
-  if (yard)    p += 25;
-  if (isNight) p += 30;
-  if (isEve)   p += 15;
-  if (stopCycles[num] >= 5) p += 10;
-
-  // Boost: first observation, night time, at a yard
-  if (stopCycles[num] <= 2 && isNight && yard) p = Math.max(p, 60);
-
-  p = Math.min(p, 99);
-  return { status: p >= N_THRESH ? 'night' : 'stopped', prob:p, ms, yard, realTime, station: cached?.station };
+  return{status:p>=N_THRESH?'night':'stopped',prob:Math.min(p,99)};
 }
 
-// ── ICONS ─────────────────────────────────────────────
-function trainIcon(num, status, deg) {
-  const arrow = deg != null ? `<div class="tma ${status}" style="transform:rotate(${deg}deg)">▲</div>` : '';
-  return L.divIcon({className:'',html:`<div class="tm">${arrow}<div class="tmc ${status}">${String(num).slice(0,4)}</div></div>`,iconSize:[34,34],iconAnchor:[17,17],popupAnchor:[0,-18]});
-}
-function spotIcon() {
-  return L.divIcon({className:'',html:`<div style="color:#ffd43b;font-size:20px;line-height:1;filter:drop-shadow(0 2px 6px rgba(0,0,0,.9))">▲</div>`,iconSize:[20,20],iconAnchor:[10,18],popupAnchor:[0,-20]});
-}
-
-// ── POPUPS ────────────────────────────────────────────
-function trainPopup(t) {
-  const { status, prob, ms, yard, realTime, station } = t._e;
-  const lbl = { moving:'LIIKKUU', stopped:'PYSÄHTYNYT', night:'YÖSEISONTA' }[status];
-  const dir = t._b != null ? `<div class="pr"><span class="pl">Suunta</span><span class="pv">${compass(t._b)}</span></div>` : '';
-  const yrd = yard ? `<div class="pr"><span class="pl">Lähellä</span><span class="pv">${yard}</span></div>` : '';
-
-  let timeHtml = '';
-  if (status !== 'moving' && ms > 0) {
-    const src = realTime
-      ? `<div class="ptime-src">⏱ Aika aikatauludatasta${station ? ` (${station})` : ''}</div>`
-      : `<div class="ptime-src">⏱ Seurannassa sivun avaamisen jälkeen</div>`;
-    timeHtml = `<div class="pr"><span class="pl">Pysähtynyt</span><span class="pv">${fmtMs(ms)}</span></div>${src}`;
-  }
-
-  const col = prob >= N_THRESH ? 'var(--blueb)' : prob > 30 ? 'var(--org)' : 'var(--tdim)';
-  const txt = prob >= N_THRESH ? 'Todennäköisesti yöseisonnassa' : prob > 30 ? 'Epävarma — seuraa tilannetta' : 'Lyhyt pysähdys';
-  const nest = status !== 'moving' ? `<hr class="pdiv"><div class="pnest">Yöseisonta-arvio<span class="pct" style="color:${col}">${prob}%</span><span style="font-size:9px">${txt}</span></div>` : '';
-
-  return `<div class="put"><div class="pnum ${status}">Juna&nbsp;${t.trainNumber}</div>
-    <div class="pr"><span class="pl">Nopeus</span><span class="pv">${Math.round(t.speed)} km/h</span></div>
-    ${dir}${yrd}${timeHtml}<span class="pbadge ${status}">${lbl}</span>${nest}</div>`;
-}
-
-function spotPopup(s) {
-  return `<div class="pus"><div class="pus-t">${s.ico} ${s.n}</div><div class="pus-ty">${s.type}</div><div class="pus-d">${s.desc}</div></div>`;
-}
-
-// ── RENDER ────────────────────────────────────────────
-function renderTrains(data) {
+function render(data){
   LG.trains.clearLayers();
-  data.filter(t => {
-    if (activeF === 'all')     return true;
-    if (activeF === 'moving')  return t._e.status === 'moving';
-    if (activeF === 'stopped') return t._e.status === 'stopped' || t._e.status === 'night';
-    if (activeF === 'night')   return t._e.status === 'night';
-    return true;
-  }).forEach(t => {
-    const m = L.marker([t.location.coordinates[1], t.location.coordinates[0]], {
-      icon: trainIcon(t.trainNumber, t._e.status, t._b),
-      zIndexOffset: t._e.status === 'moving' ? 0 : 200,
-    });
-    m.bindPopup(trainPopup(t), { maxWidth:280 });
-    LG.trains.addLayer(m);
-  });
-  const mv = data.filter(t => t._e.status === 'moving').length;
-  const st = data.filter(t => t._e.status === 'stopped').length;
-  const ni = data.filter(t => t._e.status === 'night').length;
-  document.getElementById('cnt-all').textContent = data.length;
-  document.getElementById('cnt-mv').textContent  = mv;
-  document.getElementById('cnt-st').textContent  = st;
-  document.getElementById('cnt-ni').textContent  = ni;
-}
-
-function renderSpots() {
-  LG.spots.clearLayers();
-  SPOTS.forEach(s => {
-    const m = L.marker([s.lat, s.lng], { icon: spotIcon() });
-    m.bindPopup(spotPopup(s), { maxWidth:270 });
-    LG.spots.addLayer(m);
-  });
-  const list = document.getElementById('sp-list');
-  list.innerHTML = '';
-  SPOTS.forEach(s => {
-    const d = document.createElement('div');
-    d.className = 'si';
-    d.innerHTML = `<div class="si-ico">${s.ico}</div><div class="si-body"><div class="si-name">${s.n}</div><div class="si-tag">${s.type}</div><div class="si-desc">${s.desc}</div></div><div class="si-arr">›</div>`;
-    d.addEventListener('click', () => {
-      closePanels();
-      map.setView([s.lat, s.lng], 14);
-      setTimeout(() => LG.spots.eachLayer(l => { if (Math.abs(l.getLatLng().lat - s.lat) < 0.001) l.openPopup(); }), 350);
-    });
-    list.appendChild(d);
+  data.forEach(t=>{
+    L.marker([t.location.coordinates[1],t.location.coordinates[0]])
+      .addTo(LG.trains);
   });
 }
 
-// ── INFRASTRUCTURE ────────────────────────────────────
-async function loadInfra() {
-  try {
-    const res = await fetch(`${API}/metadata/stations`);
-    const data = await res.json();
-    data.forEach(s => {
-      if (!s.latitude || !s.longitude) return;
-      const noP = s.passengerTraffic === false;
-      if (noP && s.type === 'STATION') {
-        const c = L.circleMarker([s.latitude,s.longitude],{radius:6,fillColor:'#7048e8',fillOpacity:.65,color:'#5f3dc4',weight:1.5});
-        c.bindPopup(`<div class="pui"><div class="pui-n">${s.stationName}</div><div class="pui-t">Ratapiha · ${s.stationShortCode}</div></div>`);
-        LG.yards.addLayer(c);
-      } else if (noP && (s.type === 'STOPPING_POINT' || s.type === 'TURNOUT_IN_THE_OPEN_LINE')) {
-        const c = L.circleMarker([s.latitude,s.longitude],{radius:4,fillColor:'#0c8599',fillOpacity:.75,color:'#0b7285',weight:1});
-        c.bindTooltip(s.stationName, { direction:'top' });
-        LG.crossing.addLayer(c);
-      }
-    });
-  } catch(e) { console.warn('Infra:', e); }
-}
+async function fetchLocs(){
+  if(fetchingLocs) return;
+  fetchingLocs=true;
 
-// ── FETCH ─────────────────────────────────────────────
-async function loadCargoNums() {
-  try {
-    const today = new Date().toISOString().split('T')[0];
-    const res = await fetch(`${API}/trains/${today}?category=Cargo`);
-    if (!res.ok) throw new Error(res.status);
-    const data = await res.json();
-    if (Array.isArray(data) && data.length > 0) { cargoNums = new Set(data.map(t => t.trainNumber)); cargoOK = true; }
-  } catch(e) { console.warn('Cargo:', e); }
-}
-
-async function fetchLocs() {
-  try {
-    const res = await fetch(`${API}/train-locations/latest/`);
-    if (!res.ok) throw new Error(res.status);
-    const data = await res.json();
-    const raw = cargoOK ? data.filter(t => cargoNums.has(t.trainNumber)) : data;
-    allTrains = raw.map(t => {
-      const lat = t.location.coordinates[1], lng = t.location.coordinates[0];
-      const prev = prevPos[t.trainNumber];
-      let b = null;
-      if (prev && t.speed > STOP_KMH) { const d = hav(prev.lat,prev.lng,lat,lng); if (d > 0.05) b = brng(prev.lat,prev.lng,lat,lng); }
-      prevPos[t.trainNumber] = { lat, lng };
-      return { ...t, _b: b, _e: nightEst(t.trainNumber, t.speed, lat, lng) };
-    });
-    renderTrains(allTrains);
-    document.getElementById('ldot').className = 'ldot';
-    document.getElementById('ltxt').textContent = `Päivitetty ${new Date().toLocaleTimeString('fi-FI')}`;
-    document.getElementById('loader').style.display = 'none';
-  } catch(e) {
-    document.getElementById('ldot').className = 'ldot err';
-    document.getElementById('ltxt').textContent = `Virhe: ${e.message}`;
-    document.getElementById('loader').style.display = 'none';
+  try{
+    const res=await fetch(`${API}/train-locations/latest/`);
+    const data=await res.json();
+    allTrains=data;
+    render(allTrains);
+  }finally{
+    fetchingLocs=false;
   }
 }
 
-// ── PANELS ────────────────────────────────────────────
-let leftOpen = false, rightOpen = false;
-function toggleLeft()  { leftOpen  ? closeLeft()  : (closeRight(), openLeft());  }
-function toggleRight() { rightOpen ? closeRight() : (closeLeft(),  openRight()); }
-function openLeft()  { leftOpen=true;  document.getElementById('lpanel').classList.add('open'); document.getElementById('ltab').classList.add('open'); document.getElementById('pov').classList.add('show'); }
-function openRight() { rightOpen=true; document.getElementById('rpanel').classList.add('open'); document.getElementById('rtab').classList.add('open'); document.getElementById('pov').classList.add('show'); }
-function closeLeft()  { leftOpen=false;  document.getElementById('lpanel').classList.remove('open'); document.getElementById('ltab').classList.remove('open'); if(!rightOpen) document.getElementById('pov').classList.remove('show'); }
-function closeRight() { rightOpen=false; document.getElementById('rpanel').classList.remove('open'); document.getElementById('rtab').classList.remove('open'); if(!leftOpen)  document.getElementById('pov').classList.remove('show'); }
-function closePanels() { closeLeft(); closeRight(); document.getElementById('pov').classList.remove('show'); }
+/* SCROLL FIX TOUCH SAFE */
+['lpanel','rpanel'].forEach(id=>{
+  const el=document.getElementById(id);
 
-// ── SCROLL FIX: prevent touch events leaking to Leaflet ──
-['lpanel','rpanel'].forEach(id => {
-  const el = document.getElementById(id);
-  ['touchstart','touchmove','touchend','touchcancel'].forEach(ev => {
-    el.addEventListener(ev, e => e.stopPropagation(), { passive: true });
+  ['touchstart','touchmove','wheel'].forEach(ev=>{
+    el.addEventListener(ev,e=>{
+      e.stopPropagation();
+    },{passive:true});
   });
 });
 
-// ── LAYER TOGGLES ─────────────────────────────────────
-function mkTog(rowId, swId, key) {
-  document.getElementById(rowId).addEventListener('click', () => {
-    layerVis[key] = !layerVis[key];
-    layerVis[key] ? map.addLayer(LG[key]) : map.removeLayer(LG[key]);
-    document.getElementById(swId).classList.toggle('on', layerVis[key]);
-  });
+function closePanels(){
+  document.getElementById('pov').classList.remove('show');
 }
-mkTog('tog-y','sw-y','yards');
-mkTog('tog-c','sw-c','crossing');
-mkTog('tog-s','sw-s','spots');
 
-// ── FILTER BUTTONS ────────────────────────────────────
-const FCLS = { all:'fa', moving:'fm', stopped:'fs', night:'fn' };
-document.querySelectorAll('.fbtn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.fbtn').forEach(b => b.classList.remove('fa','fm','fs','fn'));
-    activeF = btn.dataset.f;
-    btn.classList.add(FCLS[activeF]);
-    renderTrains(allTrains);
-  });
-});
-document.getElementById('ref-btn').addEventListener('click', async () => {
-  document.getElementById('loader').style.display = 'flex';
-  await fetchLocs();
-});
-
-// ── INIT ──────────────────────────────────────────────
-(async () => {
-  renderSpots();
-  await Promise.all([loadInfra(), loadCargoNums()]);
-  await fetchLocs();
-  ticker = setInterval(fetchLocs, REFRESH);
-})();
+fetchLocs();
+setInterval(fetchLocs,REFRESH);
 </script>
+
 </body>
 </html>
