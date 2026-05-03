@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>🚂 TavaraSpotti — Tavarajunien seuranta</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg:    #070a0e;
+      --panel: #0d1117;
+      --p2:    #111820;
+      --bdr:   #1c2530;
+      --amber: #f59f00;
+      --adim:  #9e6800;
+      --blue:  #1971c2;
+      --blueb: #74c0fc;
+      --green: #2f9e44;
+      --greenb:#69db7c;
+      --purp:  #7048e8;
+      --teal:  #0c8599;
+      --org:   #e8590c;
+      --text:  #c9d1d9;
+      --tdim:  #586069;
+      --tmid:  #8b949e;
+      --r: 5px;
+      --fh: 'Barlow Condensed', sans-serif;
+      --fm: 'IBM Plex Mono', monospace;
+    }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    html,body { height:100%; overflow:hidden; }
+    body { background:var(--bg); color:var(--text); font-family:var(--fm); display:flex; flex-direction:column; height:100dvh; }
+
+    /* HEADER */
+    #hdr { background:var(--panel); border-bottom:2px solid var(--bdr); padding:0 12px; height:50px; display:flex; align-items:center; gap:10px; flex-shrink:0; z-index:500; }
+    .logo { font-family:var(--fh); font-weight:900; font-size:21px; letter-spacing:.5px; color:var(--amber); user-select:none; white-space:nowrap; }
+    #sunbox { display:flex; gap:10px; font-size:10px; color:var(--tdim); white-space:nowrap; }
+    #sunbox b { color:var(--tmid); }
+    #livewrap { margin-left:auto; display:flex; align-items:center; gap:6px; font-size:10px; color:var(--tdim); white-space:nowrap; }
+    .ldot { width:7px; height:7px; border-radius:50%; background:var(--greenb); box-shadow:0 0 7px var(--greenb); animation:blink 2s infinite; flex-shrink:0; }
+    .ldot.err { background:#e03131; box-shadow:0 0 7px #e03131; animation:none; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+    /* FILTER ROW */
+    #frow { background:var(--panel); border-bottom:1px solid var(--bdr); padding:6px 10px; display:flex; gap:6px; overflow-x:auto; flex-shrink:0; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+    #frow::-webkit-scrollbar { display:none; }
+    .fbtn { font-family:var(--fm); font-size:11px; padding:5px 14px; border-radius:20px; border:1px solid var(--bdr); background:transparent; color:var(--tdim); cursor:pointer; white-space:nowrap; flex-shrink:0; transition:all .15s; }
+    .fbtn:hover { border-color:var(--tmid); color:var(--text); }
+    .fbtn.fa { background:var(--amber); color:#000; border-color:var(--amber); font-weight:700; }
+    .fbtn.fm { background:var(--green); color:#fff; border-color:var(--green); font-weight:700; }
+    .fbtn.fs { background:var(--org);   color:#fff; border-color:var(--org);   font-weight:700; }
+    .fbtn.fn { background:var(--blue);  color:#fff; border-color:var(--blue);  font-weight:700; }
+
+    /* MAP */
+    #map { flex:1; min-height:0; position:relative; }
+
+    /* FLOATING CONTROLS */
+    #fcr { position:absolute; top:10px; right:10px; z-index:400; display:flex; flex-direction:column; gap:5px; }
+    #fcb { position:absolute; bottom:28px; right:10px; z-index:400; display:flex; flex-direction:column; gap:5px; align-items:flex-end; }
+    #chip { position:absolute; bottom:28px; left:10px; z-index:400; background:rgba(13,17,23,.9); border:1px solid var(--bdr); border-radius:var(--r); padding:6px 10px; font-size:10px; color:var(--tdim); backdrop-filter:blur(4px); line-height:1.8; pointer-events:none; }
+    #chip b { color:var(--text); }
+    .cbtn { font-family:var(--fm); font-size:10px; padding:6px 10px; border-radius:var(--r); border:1px solid var(--bdr); background:rgba(13,17,23,.9); color:var(--tdim); cursor:pointer; white-space:nowrap; transition:all .15s; backdrop-filter:blur(4px); }
+    .cbtn:hover { border-color:var(--tmid); color:var(--text); }
+    .cbtn.cp { border-color:var(--purp); color:var(--purp); }
+    .cbtn.ct { border-color:var(--teal); color:var(--teal); }
+    .cbtn.co { border-color:var(--org);  color:var(--org);  }
+
+    /* LEAFLET */
+    .leaflet-popup-content-wrapper { background:var(--panel)!important; border:1px solid var(--bdr)!important; border-radius:8px!important; box-shadow:0 10px 40px rgba(0,0,0,.75)!important; color:var(--text)!important; font-family:var(--fm)!important; padding:0!important; }
+    .leaflet-popup-tip-container { display:none; }
+    .leaflet-popup-content { margin:0!important; padding:0!important; }
+    .leaflet-control-attribution { background:rgba(7,10,14,.85)!important; color:var(--tdim)!important; font-size:9px!important; }
+    .leaflet-control-attribution a { color:var(--adim)!important; }
+
+    /* TRAIN POPUP */
+    .put { padding:14px 16px; min-width:210px; }
+    .pnum { font-family:var(--fh); font-size:30px; font-weight:900; letter-spacing:1px; line-height:1; margin-bottom:10px; }
+    .pnum.moving  { color:var(--greenb); }
+    .pnum.stopped { color:var(--org); }
+    .pnum.night   { color:var(--blueb); }
+    .pr { display:flex; justify-content:space-between; align-items:baseline; font-size:11px; margin-top:5px; gap:12px; }
+    .pl { color:var(--tdim); white-space:nowrap; }
+    .pv { color:var(--text); text-align:right; }
+    .pbadge { display:inline-block; padding:3px 10px; border-radius:3px; font-size:10px; font-weight:700; margin-top:10px; letter-spacing:.6px; }
+    .pbadge.moving  { background:rgba(47,158,68,.18);  color:var(--greenb); border:1px solid rgba(47,158,68,.35); }
+    .pbadge.stopped { background:rgba(232,89,12,.18);  color:var(--org);    border:1px solid rgba(232,89,12,.35); }
+    .pbadge.night   { background:rgba(25,113,194,.18); color:var(--blueb);  border:1px solid rgba(25,113,194,.35); }
+    .pdiv { border:none; border-top:1px solid var(--bdr); margin:10px 0; }
+    .pnest { font-size:10px; color:var(--tdim); line-height:1.55; }
+    .pnest .pct { font-family:var(--fh); font-size:22px; font-weight:900; display:block; line-height:1; margin:3px 0 2px; }
+
+    /* SPOT POPUP */
+    .pus { padding:13px 15px; min-width:200px; max-width:270px; }
+    .pus-t { font-family:var(--fh); font-size:18px; font-weight:700; color:var(--amber); line-height:1.2; margin-bottom:3px; }
+    .pus-ty { font-size:9px; color:var(--tdim); text-transform:uppercase; letter-spacing:.6px; margin-bottom:7px; }
+    .pus-d { font-size:11px; color:var(--tmid); line-height:1.55; }
+
+    /* INFRA POPUP */
+    .pui { padding:10px 13px; min-width:150px; }
+    .pui-n { font-family:var(--fh); font-size:17px; font-weight:700; color:var(--text); }
+    .pui-t { font-size:10px; color:var(--tdim); margin-top:3px; }
+
+    /* TRAIN MARKER */
+    .tm { position:relative; width:34px; height:34px; cursor:pointer; }
+    .tmc { position:absolute; top:2px; left:2px; width:30px; height:30px; border-radius:50%; border:2px solid; display:flex; align-items:center; justify-content:center; font-family:var(--fh); font-size:9px; font-weight:700; overflow:hidden; }
+    .tmc.moving  { background:rgba(47,158,68,.2);  border-color:var(--greenb); color:var(--greenb); }
+    .tmc.stopped { background:rgba(232,89,12,.2);  border-color:var(--org);    color:var(--org); }
+    .tmc.night   { background:rgba(25,113,194,.2); border-color:var(--blueb);  color:var(--blueb); }
+    .tma { position:absolute; top:0; left:0; width:34px; height:34px; display:flex; align-items:flex-start; justify-content:center; font-size:8px; pointer-events:none; transform-origin:17px 17px; }
+    .tma.moving  { color:var(--greenb); }
+    .tma.stopped { color:var(--org);    opacity:.35; }
+    .tma.night   { color:var(--blueb);  opacity:.45; }
+
+    /* SPOTS PANEL */
+    #sov { position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:600; display:none; }
+    #sov.open { display:block; }
+    #spanel { position:fixed; bottom:0; left:0; right:0; background:var(--panel); border-top:1px solid var(--bdr); border-radius:14px 14px 0 0; z-index:700; max-height:78vh; display:flex; flex-direction:column; transform:translateY(100%); transition:transform .28s cubic-bezier(.4,0,.2,1); }
+    #spanel.open { transform:translateY(0); }
+    #sp-hand { padding:10px; text-align:center; cursor:pointer; flex-shrink:0; }
+    #sp-hand::before { content:''; display:inline-block; width:36px; height:4px; background:var(--bdr); border-radius:2px; }
+    #sp-hdr { padding:0 16px 10px; display:flex; align-items:flex-start; justify-content:space-between; flex-shrink:0; }
+    #sp-hdr h2 { font-family:var(--fh); font-size:24px; font-weight:900; color:var(--amber); letter-spacing:.5px; }
+    #sp-hdr .sub { font-size:10px; color:var(--tdim); margin-top:2px; }
+    #sp-close { font-size:18px; color:var(--tdim); background:none; border:none; cursor:pointer; padding:4px 6px; }
+    #sp-list { overflow-y:auto; padding:0 10px 24px; flex:1; -webkit-overflow-scrolling:touch; }
+    .si { display:flex; align-items:flex-start; gap:10px; padding:11px 8px; border-radius:7px; cursor:pointer; border-bottom:1px solid var(--bdr); transition:background .12s; }
+    .si:hover,.si:active { background:var(--p2); }
+    .si-ico { font-size:18px; flex-shrink:0; width:24px; text-align:center; margin-top:1px; }
+    .si-body { flex:1; min-width:0; }
+    .si-name { font-family:var(--fh); font-size:16px; font-weight:700; color:var(--text); line-height:1.2; }
+    .si-tag  { font-size:9px; color:var(--tdim); text-transform:uppercase; letter-spacing:.5px; margin:2px 0 4px; }
+    .si-desc { font-size:11px; color:var(--tdim); line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .si-arr  { flex-shrink:0; color:var(--tdim); font-size:18px; margin-top:2px; }
+
+    /* LEGEND */
+    #legend { position:absolute; top:10px; left:10px; z-index:400; display:none; background:rgba(13,17,23,.92); border:1px solid var(--bdr); border-radius:var(--r); padding:10px 13px; font-size:10px; color:var(--tdim); line-height:2; backdrop-filter:blur(4px); }
+    #legend.show { display:block; }
+    .lr { display:flex; align-items:center; gap:7px; }
+    .ld { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+
+    /* LOADER */
+    #loader { position:absolute; inset:0; background:rgba(7,10,14,.9); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:450; gap:14px; }
+    .spin { width:36px; height:36px; border:3px solid var(--bdr); border-top-color:var(--amber); border-radius:50%; animation:rot .7s linear infinite; }
+    @keyframes rot { to{transform:rotate(360deg);} }
+    #loader h3 { font-family:var(--fh); font-size:20px; font-weight:900; color:var(--amber); letter-spacing:2px; }
+    #loader p  { font-size:11px; color:var(--tdim); }
+
+    @media(max-width:420px){ #sunbox{display:none;} }
+  </style>
+</head>
+<body>
+
+<div id="hdr">
+  <div class="logo">🚂 TavaraSpotti</div>
+  <div id="sunbox">
+    <div>🌅 <b id="s-rise">—</b></div>
+    <div>🌇 <b id="s-set">—</b></div>
+  </div>
+  <div id="livewrap">
+    <div class="ldot" id="ldot"></div>
+    <span id="ltxt">Yhdistetään…</span>
+  </div>
+</div>
+
+<div id="frow">
+  <button class="fbtn fa" data-f="all">🚂 Kaikki junat</button>
+  <button class="fbtn"    data-f="moving">🟢 Liikkuvat</button>
+  <button class="fbtn"    data-f="stopped">🔴 Pysähtyneet</button>
+  <button class="fbtn"    data-f="night">🔵 Yöseisonta</button>
+</div>
+
+<div id="map">
+  <div id="loader">
+    <div class="spin"></div>
+    <h3>LADATAAN</h3>
+    <p>Haetaan tavarajunadataa…</p>
+  </div>
+
+  <div id="fcr">
+    <button class="cbtn cp" id="tog-y">● Ratapihat</button>
+    <button class="cbtn ct" id="tog-c">◦ Kohtauspaikat</button>
+    <button class="cbtn co" id="tog-s">▲ Spotit kartalla</button>
+    <button class="cbtn"    id="tog-l">? Selite</button>
+  </div>
+
+  <div id="fcb">
+    <button class="cbtn co" id="open-sp" style="font-size:12px;padding:8px 14px;">📷 Spottilistaus</button>
+    <button class="cbtn"    id="ref-btn">↺ Päivitä nyt</button>
+  </div>
+
+  <div id="chip"><div id="chip-txt">Ladataan…</div></div>
+
+  <div id="legend">
+    <div class="lr"><span class="ld" style="background:var(--greenb)"></span>Liikkuva juna</div>
+    <div class="lr"><span class="ld" style="background:var(--org)"></span>Pysähtynyt</div>
+    <div class="lr"><span class="ld" style="background:var(--blueb)"></span>Yöseisonta-arvio</div>
+    <div class="lr"><span class="ld" style="background:var(--purp);border-radius:2px;width:11px;height:11px"></span>Ratapiha</div>
+    <div class="lr"><span class="ld" style="background:var(--teal)"></span>Kohtauspaikka</div>
+    <div class="lr"><span style="font-size:13px;color:var(--org)">▲</span>&nbsp;Spottipaikka</div>
+  </div>
+</div>
+
+<div id="sov"></div>
+<div id="spanel">
+  <div id="sp-hand"></div>
+  <div id="sp-hdr">
+    <div>
+      <h2>📷 SPOTTILISTAUS</h2>
+      <div class="sub">Turvalliset katselupaikat — tavarajunille</div>
+    </div>
+    <button id="sp-close">✕</button>
+  </div>
+  <div id="sp-list"></div>
+</div>
+
+<script>
+const API       = 'https://rata.digitraffic.fi/api/v1';
+const REFRESH   = 12000;
+const STOP_KMH  = 2;
+const N_THRESH  = 55;
+
+// ── MAJOR YARDS ──────────────────────────────────────
+const YARDS=[
+  {n:'Kouvola',lat:60.868,lng:26.702,r:5},{n:'Tampere Lielahti',lat:61.522,lng:23.709,r:4},
+  {n:'Oulu',lat:65.012,lng:25.472,r:5},{n:'Riihimäki',lat:60.740,lng:24.773,r:3},
+  {n:'Seinäjoki',lat:62.787,lng:22.835,r:3},{n:'Pieksämäki',lat:62.303,lng:27.138,r:3},
+  {n:'Ylivieska',lat:64.073,lng:24.563,r:3},{n:'Pasila',lat:60.200,lng:24.925,r:4},
+  {n:'Kotka',lat:60.467,lng:26.940,r:3},{n:'Turku tavara',lat:60.440,lng:22.250,r:3},
+  {n:'Iisalmi',lat:63.558,lng:27.193,r:2},{n:'Jyväskylä',lat:62.243,lng:25.752,r:3},
+  {n:'Imatra',lat:61.195,lng:28.772,r:3},{n:'Raahe',lat:64.697,lng:24.476,r:3},
+  {n:'Tornio',lat:65.847,lng:24.155,r:3},
+];
+
+// ── SPOTTING LOCATIONS ────────────────────────────────
+const SPOTS=[
+  {n:'Kouvola — Ratapihankatu',lat:60.866,lng:26.693,type:'Järjestelyratapiha',ico:'🏭',
+   desc:'Ratapihankadun ylikulkusilta antaa täydellisen ylänäkymän Suomen suurimmalle järjestelyratapihalle. Näet veturien vaihtotyön, malmijunat ja kemikaalikuljetukset.'},
+  {n:'Tampere — Lielahden silta',lat:61.522,lng:23.707,type:'Tavarayksikkö',ico:'📦',
+   desc:'Lentokentänkadun silta Lielahden teollisuusalueen vieressä. Tampereen kaikki tavaraliikenne kulkee tässä — paperijunat, sekatavarajunat ja veturinvaihdot.'},
+  {n:'Oulu — Kotkantie',lat:65.028,lng:25.451,type:'Järjestelyratapiha',ico:'🏭',
+   desc:'Kotkantien silta Oulun ratapihan pohjoispuolella. Raahen terästehtaan malmijunat ja pohjoiseen menevät tavarajunat kulkevat tästä säännöllisesti.'},
+  {n:'Riihimäki — Aseman silta',lat:60.744,lng:24.776,type:'Päärata',ico:'🛤️',
+   desc:'Aseman pohjoispuolen ylikulkusilta. Päärata on vilkkaimmillaan tässä — pitkät tavarajunat ohittavat henkilöjunia, näet usein kohtauksia.'},
+  {n:'Kouvola — Mäkikylän reuna',lat:60.852,lng:26.747,type:'Ratapihareuna',ico:'🔭',
+   desc:'Kouvolan itäpuolen ratapihan reuna — lähempänä toimintaa kuin Ratapihankatu. Hyvä aamunousuvaihtoehto.'},
+  {n:'Seinäjoki — Ratapihan reuna',lat:62.793,lng:22.829,type:'Liikenteenjakopiste',ico:'🔀',
+   desc:'Pohjanmaan radan ja Seinäjoki–Tampere-radan risteyspiste. Pitkiä tavarajunia pysähtyy ja lähtee liikkeelle, vilkas rytmi.'},
+  {n:'Ylivieska — Asema',lat:64.073,lng:24.563,type:'Kohtauspaikka',ico:'🔀',
+   desc:'Tärkeä kohtauspaikka pohjoisella pääradalla. Tavarajunat odottavat henkilöjunien ohituksia — hyvät mahdollisuudet pitkiin pysähtyneisiin juniin.'},
+  {n:'Pieksämäki — Asema',lat:62.303,lng:27.138,type:'Rautatieristeys',ico:'✕',
+   desc:'Savon radan ja Pieksämäki–Jyväskylä-radan risteys. Historiallinen junahubi — näkee harvinaista kalustoa ja pitkiä sekatavarajunia.'},
+  {n:'Kotka — Hovinsaaren silta',lat:60.467,lng:26.940,type:'Satamayhteys',ico:'⚓',
+   desc:'Hovinsaaren satamaan johtavan radan silta. Malmijunat, konttijunat ja paperirullajunat. Kotka on Suomen suurin bulk-satama.'},
+  {n:'Tornio — Rajasillat',lat:65.847,lng:24.155,type:'Rajanylityspiste / Teräs',ico:'🛂',
+   desc:'SSAB:n Tornion terästehtaan junat kulkevat rajasillat vierestä. Harvinaista terässlabi- ja erikoiskalustoa, kaksoisraiteen kohta.'},
+  {n:'Raahe — SSAB Terästehdas',lat:64.697,lng:24.476,type:'Teollisuusrata',ico:'⚙️',
+   desc:'SSAB Raahen terästehtaan vieressä oleva julkinen tie. Malmijunat, kuonajunat ja terässlabijunat ovat täällä arkipäivää.'},
+  {n:'Lappeenranta — Mustola',lat:61.052,lng:28.168,type:'Satama / Transitoliikenne',ico:'⚓',
+   desc:'Mustolan sisäsataman radan vieressä. Kaakkois-Suomen logistiikkakeskus — metsäteollisuuden vientikuljetukset ja transitojunat.'},
+  {n:'Jyväskylä — Seppälänkangas',lat:62.253,lng:25.739,type:'Päärata',ico:'🛤️',
+   desc:'Seppäläntien silta Jyväskylän radan yli. Keski-Suomen tavarajunien pääreitti — paperi, kemikaalit ja metsähake.'},
+  {n:'Hanko — Satama',lat:59.830,lng:23.000,type:'Autologistiikka',ico:'🚗',
+   desc:'Hangon sataman ratayhteyden vieressä. Autojunat ovat Hangon erikoisuus — tuhansia uusia autoja kulkee tässä laivasta junaan.'},
+  {n:'Kokkola — Ykspihlajan satama',lat:63.887,lng:23.107,type:'Kemikaalit / Satama',ico:'⚗️',
+   desc:'Ykspihlajan sataman radan läheisyydessä. Kokkolan suurkemianteollisuuden tuotteet kulkevat tässä — erikoisvaunukalustoa säännöllisesti.'},
+  {n:'Iisalmi — Asema',lat:63.558,lng:27.193,type:'Kaivoskuljetukset',ico:'⛏️',
+   desc:'Terrafamen (Sotkamon kaivoksen) kuljetukset kulkevat Iisalmen kautta. Nikkelisulfaattijunia erikoisvaunuilla — harvinaista nähtävää.'},
+  {n:'Imatra — Pelkolan ratapiha',lat:61.195,lng:28.772,type:'Metsäteollisuus',ico:'🌲',
+   desc:'Imatran Pelkolan teollisuusalueen rata. Metsäteollisuuden puunhankintajunat ja paperitehtaan raaka-aineradat.'},
+];
+
+// ── MAP ───────────────────────────────────────────────
+const map=L.map('map',{center:[64.2,26.0],zoom:6});
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+  attribution:'© <a href="https://www.openstreetmap.org/copyright">OSM</a> © <a href="https://carto.com/">CARTO</a> | <a href="https://rata.digitraffic.fi">Digitraffic</a>',
+  subdomains:'abcd',maxZoom:19,
+}).addTo(map);
+
+const LG={trains:L.layerGroup().addTo(map),yards:L.layerGroup().addTo(map),crossing:L.layerGroup().addTo(map),spots:L.layerGroup().addTo(map)};
+
+// ── STATE ─────────────────────────────────────────────
+let activeF='all', allTrains=[], cargoNums=new Set(), cargoOK=false;
+let prevPos={}, stopCycles={}, firstStop={}, layerVis={yards:true,crossing:true,spots:true}, ticker=null;
+
+// ── MATH UTILS ────────────────────────────────────────
+const D2R=Math.PI/180, R2D=180/Math.PI;
+function hav(a,b,c,d){const dL=(c-a)*D2R,dO=(d-b)*D2R,x=Math.sin(dL/2)**2+Math.cos(a*D2R)*Math.cos(c*D2R)*Math.sin(dO/2)**2;return 6371*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
+function brng(a,b,c,d){const dn=(d-b)*D2R,y=Math.sin(dn)*Math.cos(c*D2R),x=Math.cos(a*D2R)*Math.sin(c*D2R)-Math.sin(a*D2R)*Math.cos(c*D2R)*Math.cos(dn);return(Math.atan2(y,x)*R2D+360)%360;}
+function compass(deg){return['↑ Pohj.','↗ Koill.','→ Itä','↘ Kaakko','↓ Etelä','↙ Lounas','← Länsi','↖ Luode'][Math.round(deg/45)%8];}
+function nearYard(lat,lng){let best=null,bd=99;for(const y of YARDS){const d=hav(lat,lng,y.lat,y.lng);if(d<y.r&&d<bd){best=y.n;bd=d;}}return best;}
+function fmtMs(ms){const m=Math.round(ms/60000);return m<60?`${m} min`:`${Math.floor(m/60)} t ${m%60} min`;}
+
+// ── SUNRISE / SUNSET ──────────────────────────────────
+function sunTimes(lat,lng){
+  const now=new Date(),doy=Math.floor((now-new Date(now.getFullYear(),0,0))/86400000);
+  const P=Math.asin(0.39795*Math.cos(0.2163108+2*Math.atan(0.9671396*Math.tan(0.00860*(doy-186)))));
+  const lr=lat*D2R,arg=(Math.sin(0.8333*D2R)+Math.sin(lr)*Math.sin(P))/(Math.cos(lr)*Math.cos(P));
+  if(arg>1)return{rise:null,set:null,note:'Kaamos ☾'};
+  if(arg<-1)return{rise:null,set:null,note:'Yötön yö ☀'};
+  const D=Math.acos(arg)*R2D,tz=-now.getTimezoneOffset()/60;
+  const hm=h=>{const t=((h+tz)%24+24)%24,hh=Math.floor(t),mm=Math.round((t-hh)*60);return`${String(hh).padStart(2,'0')}:${String(Math.min(mm,59)).padStart(2,'0')}`;};
+  return{rise:hm(12-D/15-lng/15),set:hm(12+D/15-lng/15),note:null};
+}
+function refreshSun(){
+  const c=map.getCenter(),s=sunTimes(c.lat,c.lng);
+  if(s.note){document.getElementById('s-rise').textContent=s.note;document.getElementById('s-set').textContent='';}
+  else{document.getElementById('s-rise').textContent=s.rise;document.getElementById('s-set').textContent=s.set;}
+}
+
+// ── NIGHT STOP ESTIMATION ─────────────────────────────
+function nightEst(num,speed,lat,lng){
+  const now=new Date(),h=now.getHours();
+  if(speed>STOP_KMH){stopCycles[num]=0;delete firstStop[num];return{status:'moving',prob:0,ms:0,yard:null};}
+  stopCycles[num]=(stopCycles[num]||0)+1;
+  if(!firstStop[num])firstStop[num]=now;
+  const ms=now-firstStop[num],mins=ms/60000;
+  const yard=nearYard(lat,lng);
+  const isNight=h>=20||h<6, isEve=h>=17&&h<20;
+  let p=0;
+  if(mins>120)p+=40;else if(mins>60)p+=25;else if(mins>30)p+=15;else if(mins>10)p+=5;
+  if(yard)p+=25; if(isNight)p+=30; if(isEve)p+=15; if(stopCycles[num]>=5)p+=10;
+  if(stopCycles[num]<=2&&isNight&&yard)p=Math.max(p,60);
+  p=Math.min(p,99);
+  return{status:p>=N_THRESH?'night':'stopped',prob:p,ms,yard};
+}
+
+// ── ICONS ─────────────────────────────────────────────
+function trainIcon(num,status,deg){
+  const arrow=deg!=null?`<div class="tma ${status}" style="transform:rotate(${deg}deg)">▲</div>`:'';
+  return L.divIcon({className:'',html:`<div class="tm">${arrow}<div class="tmc ${status}">${String(num).slice(0,4)}</div></div>`,iconSize:[34,34],iconAnchor:[17,17],popupAnchor:[0,-18]});
+}
+function spotIcon(){
+  return L.divIcon({className:'',html:`<div style="color:#e8590c;font-size:20px;line-height:1;filter:drop-shadow(0 2px 5px rgba(0,0,0,.85));text-shadow:0 0 10px rgba(232,89,12,.5)">▲</div>`,iconSize:[20,20],iconAnchor:[10,18],popupAnchor:[0,-20]});
+}
+
+// ── POPUPS ────────────────────────────────────────────
+function trainPopup(t){
+  const{status,prob,ms,yard}=t._e;
+  const lbl={moving:'LIIKKUU',stopped:'PYSÄHTYNYT',night:'YÖSEISONTA'}[status];
+  const dir=t._b!=null?`<div class="pr"><span class="pl">Suunta</span><span class="pv">${compass(t._b)}</span></div>`:'';
+  const yrd=yard?`<div class="pr"><span class="pl">Lähellä</span><span class="pv">${yard}</span></div>`:'';
+  const stp=status!=='moving'&&ms>0?`<div class="pr"><span class="pl">Pysähtynyt</span><span class="pv">${fmtMs(ms)}</span></div>`:'';
+  const col=prob>=N_THRESH?'var(--blueb)':prob>30?'var(--org)':'var(--tdim)';
+  const txt=prob>=N_THRESH?'Todennäköisesti yöseisonnassa':prob>30?'Epävarma — seuraa tilannetta':'Lyhyt pysähdys';
+  const nest=status!=='moving'?`<hr class="pdiv"><div class="pnest">Yöseisonta-arvio<span class="pct" style="color:${col}">${prob}%</span><span style="font-size:9px">${txt}</span></div>`:'';
+  return`<div class="put"><div class="pnum ${status}">Juna&nbsp;${t.trainNumber}</div>
+    <div class="pr"><span class="pl">Nopeus</span><span class="pv">${Math.round(t.speed)} km/h</span></div>
+    ${dir}${yrd}${stp}<span class="pbadge ${status}">${lbl}</span>${nest}</div>`;
+}
+function spotPopup(s){return`<div class="pus"><div class="pus-t">${s.ico} ${s.n}</div><div class="pus-ty">${s.type}</div><div class="pus-d">${s.desc}</div></div>`;}
+
+// ── RENDER TRAINS ─────────────────────────────────────
+function renderTrains(data){
+  LG.trains.clearLayers();
+  const vis=data.filter(t=>{
+    if(activeF==='all')    return true;
+    if(activeF==='moving') return t._e.status==='moving';
+    if(activeF==='stopped')return t._e.status==='stopped'||t._e.status==='night';
+    if(activeF==='night')  return t._e.status==='night';
+    return true;
+  });
+  vis.forEach(t=>{
+    const m=L.marker([t.location.coordinates[1],t.location.coordinates[0]],{icon:trainIcon(t.trainNumber,t._e.status,t._b),zIndexOffset:t._e.status==='moving'?0:200});
+    m.bindPopup(trainPopup(t),{maxWidth:290});
+    LG.trains.addLayer(m);
+  });
+  const mv=data.filter(t=>t._e.status==='moving').length;
+  const st=data.filter(t=>t._e.status==='stopped').length;
+  const ni=data.filter(t=>t._e.status==='night').length;
+  document.getElementById('chip-txt').innerHTML=`<b>${data.length}</b> tavarajunaa &nbsp;·&nbsp; 🟢<b>${mv}</b> &nbsp;·&nbsp; 🔴<b>${st}</b> &nbsp;·&nbsp; 🔵<b>${ni}</b>`;
+}
+
+// ── RENDER SPOTS ──────────────────────────────────────
+function renderSpots(){
+  LG.spots.clearLayers();
+  SPOTS.forEach(s=>{
+    const m=L.marker([s.lat,s.lng],{icon:spotIcon()});
+    m.bindPopup(spotPopup(s),{maxWidth:280});
+    LG.spots.addLayer(m);
+  });
+  const list=document.getElementById('sp-list');
+  list.innerHTML='';
+  SPOTS.forEach(s=>{
+    const d=document.createElement('div');
+    d.className='si';
+    d.innerHTML=`<div class="si-ico">${s.ico}</div><div class="si-body"><div class="si-name">${s.n}</div><div class="si-tag">${s.type}</div><div class="si-desc">${s.desc}</div></div><div class="si-arr">›</div>`;
+    d.addEventListener('click',()=>{
+      closePanel(); map.setView([s.lat,s.lng],14);
+      setTimeout(()=>LG.spots.eachLayer(l=>{if(Math.abs(l.getLatLng().lat-s.lat)<0.001)l.openPopup();}),350);
+    });
+    list.appendChild(d);
+  });
+}
+
+// ── LOAD INFRASTRUCTURE ───────────────────────────────
+async function loadInfra(){
+  try{
+    const res=await fetch(`${API}/metadata/stations`);
+    const data=await res.json();
+    data.forEach(s=>{
+      if(!s.latitude||!s.longitude)return;
+      const noP=s.passengerTraffic===false;
+      if(noP&&s.type==='STATION'){
+        const c=L.circleMarker([s.latitude,s.longitude],{radius:6,fillColor:'#7048e8',fillOpacity:.65,color:'#5f3dc4',weight:1.5});
+        c.bindPopup(`<div class="pui"><div class="pui-n">${s.stationName}</div><div class="pui-t">Ratapiha · ${s.stationShortCode}</div></div>`);
+        LG.yards.addLayer(c);
+      }else if(noP&&(s.type==='STOPPING_POINT'||s.type==='TURNOUT_IN_THE_OPEN_LINE')){
+        const c=L.circleMarker([s.latitude,s.longitude],{radius:3,fillColor:'#0c8599',fillOpacity:.75,color:'#0b7285',weight:1});
+        c.bindTooltip(s.stationName,{direction:'top'});
+        LG.crossing.addLayer(c);
+      }
+    });
+  }catch(e){console.warn('Infra:',e);}
+}
+
+// ── FETCH CARGO NUMBERS ───────────────────────────────
+async function loadCargoNums(){
+  try{
+    const today=new Date().toISOString().split('T')[0];
+    const res=await fetch(`${API}/trains/${today}?category=Cargo`);
+    if(!res.ok)throw new Error(res.status);
+    const data=await res.json();
+    if(Array.isArray(data)&&data.length>0){cargoNums=new Set(data.map(t=>t.trainNumber));cargoOK=true;}
+  }catch(e){console.warn('Cargo nums:',e);}
+}
+
+// ── FETCH LOCATIONS ───────────────────────────────────
+async function fetchLocs(){
+  try{
+    const res=await fetch(`${API}/train-locations/latest/`);
+    if(!res.ok)throw new Error(res.status);
+    const data=await res.json();
+    const raw=cargoOK?data.filter(t=>cargoNums.has(t.trainNumber)):data;
+    allTrains=raw.map(t=>{
+      const lat=t.location.coordinates[1],lng=t.location.coordinates[0];
+      const prev=prevPos[t.trainNumber];
+      let b=null;
+      if(prev&&t.speed>STOP_KMH){const d=hav(prev.lat,prev.lng,lat,lng);if(d>0.05)b=brng(prev.lat,prev.lng,lat,lng);}
+      prevPos[t.trainNumber]={lat,lng};
+      return{...t,_b:b,_e:nightEst(t.trainNumber,t.speed,lat,lng)};
+    });
+    renderTrains(allTrains);
+    document.getElementById('ldot').className='ldot';
+    document.getElementById('ltxt').textContent=`Päivitetty ${new Date().toLocaleTimeString('fi-FI')}`;
+    document.getElementById('loader').style.display='none';
+  }catch(e){
+    document.getElementById('ldot').className='ldot err';
+    document.getElementById('ltxt').textContent=`Virhe: ${e.message}`;
+    document.getElementById('loader').style.display='none';
+    console.error('fetchLocs:',e);
+  }
+}
+
+// ── PANEL ─────────────────────────────────────────────
+function openPanel(){document.getElementById('sov').classList.add('open');document.getElementById('spanel').classList.add('open');}
+function closePanel(){document.getElementById('sov').classList.remove('open');document.getElementById('spanel').classList.remove('open');}
+document.getElementById('open-sp').addEventListener('click',openPanel);
+document.getElementById('sp-close').addEventListener('click',closePanel);
+document.getElementById('sov').addEventListener('click',closePanel);
+document.getElementById('sp-hand').addEventListener('click',closePanel);
+
+// ── FILTERS ───────────────────────────────────────────
+const FCLS={all:'fa',moving:'fm',stopped:'fs',night:'fn'};
+document.querySelectorAll('.fbtn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('fa','fm','fs','fn'));
+    activeF=btn.dataset.f; btn.classList.add(FCLS[activeF]); renderTrains(allTrains);
+  });
+});
+
+// ── LAYER TOGGLES ─────────────────────────────────────
+function mkTog(id,key,cls){
+  document.getElementById(id).addEventListener('click',function(){
+    layerVis[key]=!layerVis[key];
+    layerVis[key]?map.addLayer(LG[key]):map.removeLayer(LG[key]);
+    this.classList.toggle(cls,layerVis[key]);
+  });
+}
+mkTog('tog-y','yards','cp'); mkTog('tog-c','crossing','ct'); mkTog('tog-s','spots','co');
+document.getElementById('tog-l').addEventListener('click',()=>document.getElementById('legend').classList.toggle('show'));
+document.getElementById('ref-btn').addEventListener('click',async()=>{document.getElementById('loader').style.display='flex';await fetchLocs();});
+
+map.on('moveend',refreshSun);
+
+// ── INIT ──────────────────────────────────────────────
+(async()=>{
+  refreshSun(); renderSpots();
+  await Promise.all([loadInfra(),loadCargoNums()]);
+  await fetchLocs();
+  ticker=setInterval(fetchLocs,REFRESH);
+})();
+</script>
+</body>
+</html>
